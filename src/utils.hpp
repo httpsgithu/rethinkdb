@@ -2,6 +2,7 @@
 #ifndef UTILS_HPP_
 #define UTILS_HPP_
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -111,10 +112,12 @@ static inline std::string time2str(const time_t &t) {
 #define COMPILER_STR "UNKNOWN COMPILER"
 #endif
 
+#define RETHINKDB_VERSION_STR_TRAILER " (" BUILD_MACHINE ")" " (" COMPILER_STR ")"
+
 #ifndef NDEBUG
-#define RETHINKDB_VERSION_STR "rethinkdb " RETHINKDB_VERSION " (debug)" " (" COMPILER_STR ")"
+#define RETHINKDB_VERSION_STR "rethinkdb " RETHINKDB_VERSION " (debug)" RETHINKDB_VERSION_STR_TRAILER
 #else
-#define RETHINKDB_VERSION_STR "rethinkdb " RETHINKDB_VERSION " (" COMPILER_STR ")"
+#define RETHINKDB_VERSION_STR "rethinkdb " RETHINKDB_VERSION RETHINKDB_VERSION_STR_TRAILER
 #endif
 
 #define ANY_PORT 0

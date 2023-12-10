@@ -71,6 +71,14 @@ else ifeq ($(COMPILER),GCC)
 endif
 
 RT_LDFLAGS += $(RT_LIBS)
+ifeq ($(OS),FreeBSD)
+  RT_CXXFLAGS += -I/usr/local/include
+  RT_CXXFLAGS += -D__STDC_LIMIT_MACROS
+  RT_LDFLAGS += -L/usr/local/lib
+  RT_LDFLAGS += -lstdc++
+  RT_LDFLAGS += -lexecinfo
+endif
+
 
 ifeq ($(STATICFORCE),1)
   # TODO(OSX)
@@ -91,6 +99,7 @@ RT_LDFLAGS += $(LIB_SEARCH_PATHS)
 RT_CXXFLAGS += -I$(SOURCE_DIR)
 RT_CXXFLAGS += -pthread
 RT_CXXFLAGS += "-DPRODUCT_NAME=\"$(PRODUCT_NAME)\""
+RT_CXXFLAGS += "-DBUILD_MACHINE=\"$(MACHINE)\""
 RT_CXXFLAGS += "-D__STDC_LIMIT_MACROS"
 RT_CXXFLAGS += "-D__STDC_FORMAT_MACROS"
 RT_CXXFLAGS += -Wall -Wextra

@@ -1,5 +1,9 @@
 // Copyright 2010-2014 RethinkDB, all rights reserved.
-#include <functional>
+#include "unittest/gtest.hpp"
+
+#include <limits.h>  // NOLINT(build/include_order)
+
+#include <functional>  // NOLINT(build/include_order)
 
 #ifdef _WIN32
 #include "windows.hpp"
@@ -14,7 +18,6 @@
 #include "unittest/clustering_utils.hpp"
 #include "unittest/unittest_utils.hpp"
 #include "rpc/connectivity/cluster.hpp"
-#include "unittest/gtest.hpp"
 
 namespace unittest {
 

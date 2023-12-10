@@ -1,6 +1,8 @@
 // Copyright 2010-2016 RethinkDB, all rights reserved.
 #include "clustering/administration/main/command_line.hpp"
 
+#include <errno.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +35,19 @@
 #include <sys/sysctl.h>
 #endif
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <exception>
 #include <functional>
 #include <limits>
+#include <map>
+#include <memory>
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <re2/re2.h>
 
@@ -381,8 +394,58 @@ bool exists_option(const std::map<std::string, options::values_t> &opts, const s
     return it != opts.end() && !it->second.values.empty();
 }
 
+#ifdef _WIN32
+std::string windows_version_string() {
+    // TODO WINDOWS: the return value of GetVersion may be capped,
+    // see https://msdn.microsoft.com/en-us/library/dn481241(v=vs.85).aspx
+    DWORD version = GetVersion();
+    int major = LOBYTE(LOWORD(version));
+    int minor = HIBYTE(LOWORD(version));
+    int build = version < 0x80000000 ?  HIWORD(version) : 0;
+    std::string name;
+    switch (LOWORD(version)) {
+    case 0x000A: name ="Windows 10, Server 2016"; break;
+    case 0x0306: name ="Windows 8.1, Server 2012"; break;
+    case 0x0206: name ="Windows 8, Server 2012"; break;
+    case 0x0106: name ="Windows 7, Server 2008 R2"; break;
+    case 0x0006: name ="Windows Vista, Server 2008"; break;
+    case 0x0205: name ="Windows XP 64-bit, Server 2003"; break;
+    case 0x0105: name ="Windows XP"; break;
+    case 0x0005: name ="Windows 2000"; break;
+    default: name = "Unknown";
+    }
+    return strprintf("%d.%d.%d (%s)", major, minor, build, name.c_str());
+}
+#else
+// WARNING WARNING WARNING blocking
+// if in doubt, DO NOT USE.
+std::string run_uname(const std::string &flags) {
+    char buf[1024];
+    static const std::string unknown = "unknown operating system\n";
+    const std::string combined = "uname -" + flags;
+    FILE *out = popen(combined.c_str(), "r");
+    if (!out) return unknown;
+    if (!fgets(buf, sizeof(buf), out)) {
+        pclose(out);
+        return unknown;
+    }
+    pclose(out);
+    return buf;
+}
+
+std::string uname_msr() {
+    return run_uname("msr");
+}
+#endif
+
 void print_version_message() {
     printf("%s\n", RETHINKDB_VERSION_STR);
+
+#ifdef _WIN32
+    printf("%s", windows_version_string().c_str());
+#else
+    printf("%s", uname_msr().c_str());
+#endif
 }
 
 bool handle_help_or_version_option(const std::map<std::string, options::values_t> &opts,
@@ -741,7 +804,7 @@ bool load_tls_key_and_cert(
         return false;
     }
 
-    if(SSL_CTX_use_certificate_file(tls_ctx, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_certificate_chain_file(tls_ctx, cert_file.c_str()) <= 0) {
         ERR_print_errors_fp(stderr);
         return false;
     }
@@ -1089,50 +1152,6 @@ void run_rethinkdb_create(const base_path_t &base_path,
     }
 }
 
-#ifdef _WIN32
-std::string windows_version_string() {
-    // TODO WINDOWS: the return value of GetVersion may be capped,
-    // see https://msdn.microsoft.com/en-us/library/dn481241(v=vs.85).aspx
-    DWORD version = GetVersion();
-    int major = LOBYTE(LOWORD(version));
-    int minor = HIBYTE(LOWORD(version));
-    int build = version < 0x80000000 ?  HIWORD(version) : 0;
-    std::string name;
-    switch (LOWORD(version)) {
-    case 0x000A: name ="Windows 10, Server 2016"; break;
-    case 0x0306: name ="Windows 8.1, Server 2012"; break;
-    case 0x0206: name ="Windows 8, Server 2012"; break;
-    case 0x0106: name ="Windows 7, Server 2008 R2"; break;
-    case 0x0006: name ="Windows Vista, Server 2008"; break;
-    case 0x0205: name ="Windows XP 64-bit, Server 2003"; break;
-    case 0x0105: name ="Windows XP"; break;
-    case 0x0005: name ="Windows 2000"; break;
-    default: name = "Unknown";
-    }
-    return strprintf("%d.%d.%d (%s)", major, minor, build, name.c_str());
-}
-#else
-// WARNING WARNING WARNING blocking
-// if in doubt, DO NOT USE.
-std::string run_uname(const std::string &flags) {
-    char buf[1024];
-    static const std::string unknown = "unknown operating system\n";
-    const std::string combined = "uname -" + flags;
-    FILE *out = popen(combined.c_str(), "r");
-    if (!out) return unknown;
-    if (!fgets(buf, sizeof(buf), out)) {
-        pclose(out);
-        return unknown;
-    }
-    pclose(out);
-    return buf;
-}
-
-std::string uname_msr() {
-    return run_uname("msr");
-}
-#endif
-
 void run_rethinkdb_serve(const base_path_t &base_path,
                          serve_info_t *serve_info,
                          const std::string &initial_password,
@@ -1377,7 +1396,10 @@ options::help_section_t get_auth_options(std::vector<options::option_t> *options
                                              options::OPTIONAL));
     help.add("--initial-password {auto | password}",
              "sets an initial password for the \"admin\" user on a new server.  If set "
-             "to auto, a random password will be generated.");
+             "to auto, a random password will be generated. Care should be taken when "
+             "using values other than auto as your password can be leaked into system logs "
+             "and process monitors. As a safer alternative, create a file with the content "
+             "initial-password=Y0urP4$$woRd and load it using the --config-file option.");
 
     return help;
 }

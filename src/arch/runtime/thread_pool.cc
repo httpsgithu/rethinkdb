@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #ifndef _WIN32
+#include <sched.h>
 #include <sys/time.h>
 #endif
 
@@ -149,7 +150,7 @@ void *linux_thread_pool_t::start_thread(void *arg) {
 #ifndef _WIN32
         scoped_page_aligned_ptr_t<void> stack_base(SIGNAL_HANDLER_STACK_SIZE);
         stack_t signal_stack;
-        signal_stack.ss_sp = stack_base.get();
+        signal_stack.ss_sp = (decltype(signal_stack.ss_sp))stack_base.get();
         signal_stack.ss_flags = 0;
         signal_stack.ss_size = SIGNAL_HANDLER_STACK_SIZE;
         int res = sigaltstack(&signal_stack, nullptr);

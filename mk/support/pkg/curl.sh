@@ -2,7 +2,7 @@
 version=7.82.0
 
 src_url=http://curl.haxx.se/download/curl-$version.tar.bz2
-src_url_sha1=8208c8994d8a5fde4ff5c8734998f32bdd085508
+src_url_sha256=46d9a0400a33408fd992770b04a44a7434b3036f2e8089ac28b57573d59d371f
 
 pkg_configure () {
     local prefix
@@ -25,7 +25,7 @@ pkg_configure () {
 pkg_install-include () {
     pkg_copy_src_to_build
     pkg_configure
-    make -C "$build_dir/include" install
+    $EXTERN_MAKE -C "$build_dir/include" install
 }
 
 pkg_install-include-windows () {
@@ -55,7 +55,7 @@ pkg_install-windows () {
     in_dir "$build_dir/winbuild" with_vs_env \
       nmake /f Makefile.vc mode=static MACHINE=$machine RTLIBCFG=static $flags
 
-    cp "$build_dir/builds/libcurl-vc-$machine-$out_config-static-ipv6-sspi-winssl/lib/libcurl_a${out_suffix}.lib" "$windows_deps_libs/curl.lib"
+    cp "$build_dir/builds/libcurl-vc-$machine-$out_config-static-ipv6-sspi-schannel/lib/libcurl_a${out_suffix}.lib" "$windows_deps_libs/curl.lib"
 }
 
 pkg_install () {
@@ -64,10 +64,10 @@ pkg_install () {
     pkg_configure
 
     # install the libraries
-    make -C "$build_dir/lib" install-libLTLIBRARIES
+    $EXTERN_MAKE -C "$build_dir/lib" install-libLTLIBRARIES
 
     # install the curl-config script
-    make -C "$build_dir" install-binSCRIPTS
+    $EXTERN_MAKE -C "$build_dir" install-binSCRIPTS
 }
 
 pkg_depends () {

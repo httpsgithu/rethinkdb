@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string>
 
@@ -20,7 +21,7 @@
 #else   /* not x86/amd64 */
 #define BREAKPOINT (raise(SIGTRAP))
 #endif  /* x86/amd64 */
-#elif defined(__MACH__)
+#elif defined(__MACH__) || defined(__FreeBSD__)
 #define BREAKPOINT (raise(SIGTRAP))
 #elif defined(_WIN32)
 #define BREAKPOINT DebugBreak()

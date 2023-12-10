@@ -11,7 +11,12 @@
 #include <limits.h>         // So we can set the bounds of our types
 #include <string.h>         // for memcpy()
 #include <stdlib.h>         // for free()
-#include <sys/socket.h>     // for MSG_NOSIGNAL
+// for MSG_NOSIGNAL
+#ifdef _WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
 
 #if defined(__MACH__)
 #include <unistd.h>         // for getpagesize() on mac
@@ -114,6 +119,15 @@ typedef uint16_t u_int16_t;
 #define bswap_32(x) OSSwapInt32(x)
 #define bswap_64(x) OSSwapInt64(x)
 
+#elif defined(__FreeBSD__)
+#include <sys/endian.h>
+
+#ifndef bswap_16
+#define bswap_16(x) bswap16(x)
+#define bswap_32(x) bswap32(x)
+#define bswap_64(x) bswap64(x)
+#endif
+
 #else
 #include <byteswap.h>
 #endif
@@ -128,6 +142,15 @@ typedef uint16_t u_int16_t;
 #endif
 
 #if __BYTE_ORDER == __BIG_ENDIAN
+#define IS_BIG_ENDIAN
+#endif
+
+#elif defined _BYTE_ORDER
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define IS_LITTLE_ENDIAN
+#endif
+
+#if _BYTE_ORDER == _BIG_ENDIAN
 #define IS_BIG_ENDIAN
 #endif
 

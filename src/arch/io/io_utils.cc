@@ -7,6 +7,7 @@
 #include <sys/syscall.h>
 #endif
 
+#include <errno.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #include <string.h>
@@ -17,7 +18,11 @@
 
 #ifndef _WIN32
 int _gettid() {
+#ifdef __FreeBSD__
+    return getpid();
+#else
     return syscall(SYS_gettid);
+#endif
 }
 #endif
 

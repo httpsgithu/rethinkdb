@@ -1,9 +1,8 @@
-
-version=3.0.1
+version=3.0.7
 
 src_url="https://www.openssl.org/source/openssl-$version.tar.gz"
 src_url_backup="ftp://ftp.openssl.org/source/openssl-$version.tar.gz"
-src_url_sha1="33b00311e7a910f99ff041deebc6dd7bb9f459de"
+src_url_sha256="83049d042a260e696f62406ac5c08bf706fd84383f945cf21bd61e9ed95c396e"
 
 pkg_configure () {
     case $($CXX -dumpmachine) in
@@ -58,14 +57,13 @@ pkg_install-windows () {
         out=$out.dbg
     fi
 
-    in_dir "$build_dir" with_vs_env perl Configure $config no-asm
-    in_dir "$build_dir" with_vs_env 'ms\do_'$script
-    in_dir "$build_dir" with_vs_env nmake -f 'ms\nt.mak'
+    in_dir "$build_dir" with_vs_env perl Configure $config no-asm no-shared
+    in_dir "$build_dir" with_vs_env nmake
 
-    cp "$build_dir/$out"/{ssleay32,libeay32}.lib "$windows_deps_libs/"
+    cp "$build_dir"/{libssl,libcrypto}.lib "$windows_deps_libs/"
 
     mkdir -p "$windows_deps/include/"
-    cp -R "$build_dir"/inc32/* "$windows_deps/include/"
+    cp -R "$build_dir"/include/* "$windows_deps/include/"
 }
 
 pkg_link-flags () {

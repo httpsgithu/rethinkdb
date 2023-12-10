@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -20,6 +21,7 @@
 #include <sys/socket.h>
 #endif
 
+#include "arch/io/openssl.hpp"
 #include "arch/runtime/runtime.hpp"
 #include "arch/runtime/thread_pool.hpp"
 #include "arch/timing.hpp"
@@ -28,9 +30,10 @@
 #include "concurrency/exponential_backoff.hpp"
 #include "concurrency/wait_any.hpp"
 #include "containers/printf_buffer.hpp"
+#include "errors.hpp"
 #include "logger.hpp"
 #include "perfmon/perfmon.hpp"
-#include "errors.hpp"
+#include "utils.hpp"
 
 #ifdef _WIN32
 #include "concurrency/pmap.hpp"

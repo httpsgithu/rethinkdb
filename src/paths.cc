@@ -1,7 +1,10 @@
 #include "paths.hpp"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #ifdef _WIN32
@@ -17,6 +20,7 @@
 
 #include "arch/io/disk.hpp"
 #include "clustering/administration/main/directory_lock.hpp"
+#include "errors.hpp"
 #include "logger.hpp"
 
 #ifdef _MSC_VER
@@ -36,7 +40,9 @@ int remove_directory_helper(const char *path) {
     } else {
         res = DeleteFile(path);
     }
-    guarantee_winerr(res, "failed to remove: '%s': %s", path, winerr_string(GetLastError()).c_str());
+    if (res == 0) {
+        fail_due_to_user_error("failed to remove: '%s': %s", path, winerr_string(GetLastError()).c_str());
+    }
     return 0;
 }
 
@@ -45,7 +51,9 @@ int remove_directory_helper(const char *path) {
 int remove_directory_helper(const char *path, UNUSED const struct stat *, UNUSED int, UNUSED struct FTW *) {
     logNTC("In recursion: removing file '%s'\n", path);
     int res = ::remove(path);
-    guarantee_err(res == 0, "Fatal error: failed to delete '%s'.", path);
+    if (res != 0) {
+        fail_due_to_user_error("Fatal error: failed to delete '%s'.", path);
+    }
     return 0;
 }
 
@@ -71,7 +79,15 @@ void remove_directory_recursive(const char *dirpath) {
     // limit the number of file descriptors that are open (by opening
     // and closing directories extra times if it needs to go deeper
     // than that).
+    // For FreeBSD, max_openfd must be >= 1 and <= OPEN_MAX. Also, even if
+    // given path does not exist, delete_all_helper will still be called; so we
+    // must check path existence before using nftw.
+#ifdef __FreeBSD__
+    const int max_openfd = OPEN_MAX;
+    if (::access(dirpath, 0) != 0) return;
+#else
     const int max_openfd = 128;
+#endif
     logNTC("Recursively removing directory %s\n", dirpath);
     int res = nftw(dirpath, remove_directory_helper, max_openfd, FTW_PHYS | FTW_MOUNT | FTW_DEPTH);
     guarantee_err(res == 0 || get_errno() == ENOENT, "Trouble while traversing and destroying temporary directory %s.", dirpath);
@@ -220,4 +236,3 @@ std::string blocking_read_file(const char *path) {
     guarantee(success);
     return ret;
 }
-

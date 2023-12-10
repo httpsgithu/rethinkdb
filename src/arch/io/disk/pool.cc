@@ -1,11 +1,15 @@
 // Copyright 2010-2013 RethinkDB, all rights reserved.
 #include "arch/io/disk/pool.hpp"
 
+#include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+
+#include <algorithm>
 
 #include "arch/io/disk.hpp"
 #include "config/args.hpp"

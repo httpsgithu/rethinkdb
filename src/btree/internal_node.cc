@@ -1,9 +1,12 @@
 // Copyright 2010-2013 RethinkDB, all rights reserved.
 #include "btree/internal_node.hpp"
 
+#include <string.h>
+
 #include <algorithm>
 
 #include "btree/node.hpp"
+#include "containers/unaligned.hpp"
 
 // We comment out this warning, and static_assert that pair_offsets is
 // at an aligned offset.

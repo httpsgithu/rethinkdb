@@ -18,7 +18,7 @@ init () {
     # QuickJS also has this configuration
     osx_min_version=10.9
 
-    min_msbuild_version=14.0
+    min_msbuild_version=15.0
     min_nmake_version=14.0
     min_cl_version=19.0
 
@@ -38,6 +38,7 @@ init () {
 
     default_allocator_linux=jemalloc
     default_allocator_osx=system
+    default_allocator_freebsd=system
 
     allowed_arg_vars="CXXFLAGS LDFLAGS PLATFORM MSBUILD VCVARSALL NMAKE"
 }
@@ -77,6 +78,9 @@ configure_unixlike () {
     require "Host System"
     var MACHINE $($CXX -dumpmachine)
     require "Build System"
+    require "Operating System"
+    var OS $(uname)
+    require "OS Version"
     show "`uname -msr`"
     check_cross_compiling
     require "Host Operating System"
@@ -91,6 +95,13 @@ configure_unixlike () {
             default_allocator=$default_allocator_linux
             var PTHREAD_LIBS -pthread ;
             var RT_LIBS -lrt ;;
+        *freebsd*)
+            var OS "FreeBSD"
+            default_allocator=$default_allocator_freebsd
+            var PTHREAD_LIBS -pthread ;
+            var RT_LIBS -lrt
+            [[ -z "$lib_paths" ]] && lib_paths="/usr/local/lib"
+            ;;
         *) error "unsupported operating system: $MACHINE" ;;
     esac
     case "${MACHINE%%-*}" in
@@ -454,7 +465,7 @@ write () {
 # A call to show will complete the line
 show_descr () {
     if ${can_show:-false}; then
-        show_no
+        show no
     fi
     local padded="$*:                               "
     echo -n "${padded:0:32}"
@@ -568,7 +579,7 @@ check_cxx () {
     fi
     local description=$($CXX --version 2>/dev/null)$($CXX --help 2>/dev/null)
     local version_string=$(echo "$description" | extract_version_string)
-    local type=$(echo "$description" | egrep -io 'gcc|g\+\+|clang|icc' | head -n 1)
+    local type=$(echo "$description" | grep -E -io 'gcc|g\+\+|clang|icc' | head -n 1)
     case "$(uc $type)" in
         GCC|G++) min_version=$min_gcc_version
                  type=GCC ;;
@@ -595,7 +606,7 @@ check_cxx () {
 # foo --version | extract_version_string
 # find a version string in the output of foo --version
 extract_version_string () {
-    sed 's/([^)]*)//g' | egrep -o '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1
+    sed 's/([^)]*)//g' | grep -E -o '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1
 }
 
 # read_version "1.2.3" -> 10203
@@ -908,11 +919,13 @@ tcmalloc:tcmalloc_minimal'
 # List the paths where static libraries can be found into the try_lib_paths variable
 build_try_lib_paths () {
     cc_paths=$($CXX -print-search-dirs 2>/dev/null | grep ^libraries | sed -e 's/^libraries[: =]*//; s/:/ /g')
+    ld_paths="/usr/lib /usr/local/lib"  # Default ld search paths.
     LDCONFIG=$(PATH="$PATH:/sbin:/usr/sbin" command -v ldconfig 2>/dev/null)
     if [[ -n "$LDCONFIG" ]]; then
-        ld_paths=$($LDCONFIG -v -N -X 2>/dev/null | grep -v '^	' | sed -e 's/:$//' )
-    else
-        ld_paths="/usr/lib /usr/local/lib" # Default ld search paths on OSX
+        local ld_output="$($LDCONFIG -v -N -X 2>/dev/null)"
+        if [[ -n "$ld_output" ]]; then
+          ld_paths=$(echo "$ld_output" | grep -v '^	' | sed -e 's/:$//' )
+        fi
     fi
     try_lib_paths="$lib_paths $cc_paths $ld_paths"
     try_lib_paths=$(for path in $try_lib_paths; do
@@ -1226,7 +1239,7 @@ check_vs_bin () {
     local exe=${!ucname:-}
     if [[ -z "$exe" ]] || ! lookup "$arg_vars" $ucname exe; then
         # TODO: what is a better way to find these?
-        for it in /cygdrive/*/Program\ Files*/{MSBuild/14.0,Microsoft\ Visual\ Studio\ 14.0/VC,CMake*}{,/bin}/$1.{exe,bat}; do
+        for it in /cygdrive/*/Program\ Files*/Microsoft\ Visual\ Studio/2022/*/{MSBuild/Current,VC/Auxiliary/Build,Common7/IDE/CommonExtensions/Microsoft/CMake/CMake}{,/Bin}/$1.{exe,bat}; do
             case "$it" in
                 *\**) ;;
                 *) exe=$it; break;;
